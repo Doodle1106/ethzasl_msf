@@ -4,8 +4,7 @@
         <!--remap from="msf_core/correction" to="/auk/fcu/ekf_state_in"/-->
   			
         <!--remap from="msf_core/imu_state_input" to="/imu0" /--> <!--SLAM SENSOR IMU-->
-        
-        <remap from="msf_core/imu_state_input" to="/gi/msf/imu" /> <!--IMU-->
+        <remap from="msf_core/imu_state_input" to="/auk/fcu/imu" /> <!--IMU-->
 
         <!--remap from="msf_updates/position_input" to="/leica/position" /--> <!--LEICA-->
         <!--remap from="msf_updates/navsatfix_input" to="/auk/fcu/gps" /-->  <!--GPS-->
@@ -17,12 +16,9 @@
         <!--remap from="msf_updates/pose_with_covariance_input" to="vslam/pose" /-->
 
         <!--DISTORTED-->
-        <!--remap from="msf_updates/navsatfix_input" to="/msf_distort/navsatfix_output" /--> 
-        <!--remap from="msf_updates/pose_with_covariance_input" to="/msf_distort/pose_with_covariance_output" /-->
-
         <!--SLAM and GPS INPUT-->
-        <remap from="msf_updates/navsatfix_input" to="/gi/msf/gps" />
-        <remap from="msf_updates/transform_input" to="/gi/msf/transformstamped" />
+        <remap from="msf_updates/navsatfix_input" to="/msf_distort/navsatfix_output" /> 
+        <remap from="msf_updates/pose_input" to="/msf_distort/pose_with_covariance_output" />
 
         <rosparam file="$(find msf_updates)/position_pose_sensor_fix.yaml"/>
     </node>
