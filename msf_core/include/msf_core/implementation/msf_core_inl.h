@@ -25,6 +25,7 @@
 #include <numeric>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include <msf_timing/Timer.h>
 #include <msf_core/implementation/calcQCore.h>
@@ -543,9 +544,10 @@ void MSF_Core<EKFState_T>::PredictProcessCovariance(
 }
 
 template<typename EKFState_T>
-void MSF_Core<EKFState_T>::Init(
-    shared_ptr<MSF_MeasurementBase<EKFState_T> > measurement) {
-
+void MSF_Core<EKFState_T>::Init(shared_ptr<MSF_MeasurementBase<EKFState_T> > measurement) {
+  
+  std::cout<<"MSF_Core<EKFState_T>::Init."<<std::endl;
+  
   initialized_ = false;
   predictionMade_ = false;
 
@@ -601,23 +603,38 @@ void MSF_Core<EKFState_T>::Init(
 }
 
 template<typename EKFState_T>
-void MSF_Core<EKFState_T>::AddMeasurement(
-    shared_ptr<MSF_MeasurementBase<EKFState_T> > measurement) {
+void MSF_Core<EKFState_T>::AddMeasurement(shared_ptr<MSF_MeasurementBase<EKFState_T> > measurement) {
+  
+  std::cout<<"MSF_Core<EKFState_T>::AddMeasurement start."<<std::endl;
 
-  // Return if not initialized of no imu data available.
-  if (!initialized_ || !predictionMade_)
+  // Return if not initialized.
+  if (!initialized_ )
+  {
+    MSF_ERROR_STREAM("not initialized.");
     return;
-
+  }
+  
+  // Return if no imu data available
+  if(!predictionMade_)
+  {
+    MSF_ERROR_STREAM("no imu data available.");
+    return;
+  }
+  
   // Check if the measurement is in the future where we don't have imu
   // measurements yet.
-  if (measurement->time > stateBuffer_.GetLast()->time) {
+  if (measurement->time > stateBuffer_.GetLast()->time)
+  {
+    
+    MSF_ERROR_STREAM("the measurement is in the future where we don't have imu measurements yet");
     queueFutureMeasurements_.push(measurement);
     return;
-
   }
+  
   // Check if there is still a state in the buffer for this message (too old).
-  if (measurement->time < stateBuffer_.GetFirst()->time) {
-    MSF_WARN_STREAM(
+  if (measurement->time < stateBuffer_.GetFirst()->time)
+  {
+    MSF_ERROR_STREAM(
         "You tried to give me a measurement which is too far in the past. Are "
         "you sure your clocks are synced and delays compensated correctly? "
         "[measurement: "<<timehuman(measurement->time)<<" (s) first state in "
@@ -626,11 +643,10 @@ void MSF_Core<EKFState_T>::AddMeasurement(
   }
 
   // Add this measurement to the buffer and get an iterator to it.
-  typename measurementBufferT::iterator_T it_meas =
-      MeasurementBuffer_.Insert(measurement);
+  typename measurementBufferT::iterator_T it_meas = MeasurementBuffer_.Insert(measurement);
+  
   // Get an iterator the the end of the measurement buffer.
-  typename measurementBufferT::iterator_T it_meas_end = MeasurementBuffer_
-      .GetIteratorEnd();
+  typename measurementBufferT::iterator_T it_meas_end = MeasurementBuffer_.GetIteratorEnd();
 
   // No propagation if no update is applied.
   typename StateBuffer_T::iterator_T it_curr = stateBuffer_.GetIteratorEnd();
@@ -638,9 +654,12 @@ void MSF_Core<EKFState_T>::AddMeasurement(
   bool appliedOne = false;
 
   isfuzzyState_ = false;
-
+  
+  std::cout<<"MSF_Core<EKFState_T>::AddMeasurement middle."<<std::endl;
+  
   // Now go through all the measurements and apply them one by one.
-  for (; it_meas != it_meas_end; ++it_meas) {
+  for (; it_meas != it_meas_end; ++it_meas)
+  {
 
     if (it_meas->second->time <= 0)  // Valid?
       continue;
@@ -710,7 +729,7 @@ void MSF_Core<EKFState_T>::AddMeasurement(
   shared_ptr<EKFState_T>& latestState = stateBuffer_.GetLast();
 
   PropPToState(latestState);  // Get the latest covariance.
-
+  
   usercalc_.PublishStateAfterUpdate(latestState);
 }
 

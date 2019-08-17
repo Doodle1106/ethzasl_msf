@@ -26,15 +26,18 @@
 #include <msf_core/gps_conversion.h>
 #include <sensor_fusion_comm/PointWithCovarianceStamped.h>
 
+#include <iostream>
+#include <fstream>
+
 namespace msf_position_sensor {
 
 template<typename MEASUREMENT_TYPE, typename MANAGER_TYPE>
-class PositionSensorHandler : public msf_core::SensorHandler<
-    typename msf_updates::EKFState> {
+class PositionSensorHandler : public msf_core::SensorHandler<typename msf_updates::EKFState> {
+  
  private:
 
   Eigen::Matrix<double, 3, 1> z_p_;  ///< Position measurement.
-  double n_zp_;  ///< Position measurement noise.
+  double n_zp_;        ///< Position measurement noise.
   double delay_;       ///< Delay to be subtracted from the ros-timestamp of
                        //the measurement provided by this sensor.
 
@@ -46,25 +49,30 @@ class PositionSensorHandler : public msf_core::SensorHandler<
   bool use_fixed_covariance_;  ///< Use fixed covariance set by dynamic reconfigure.
   bool provides_absolute_measurements_;  ///< Does this sensor measure relative or absolute values.
 
-  void ProcessPositionMeasurement(
-      const sensor_fusion_comm::PointWithCovarianceStampedConstPtr& msg);
+  void ProcessPositionMeasurement(const sensor_fusion_comm::PointWithCovarianceStampedConstPtr& msg);
   void MeasurementCallback(const geometry_msgs::PointStampedConstPtr & msg);
   void MeasurementCallback(const geometry_msgs::TransformStampedConstPtr & msg);
   void MeasurementCallback(const sensor_msgs::NavSatFixConstPtr& msg);
 
  public:
+   
+   std::ofstream myfile;
+   
   typedef MEASUREMENT_TYPE measurement_t;
-  PositionSensorHandler(MANAGER_TYPE& meas, std::string topic_namespace,
-                        std::string parameternamespace);
+  PositionSensorHandler(MANAGER_TYPE& meas, std::string topic_namespace, std::string parameternamespace);
+  
   // Used for the init.
-  Eigen::Matrix<double, 3, 1> GetPositionMeasurement() {
+  Eigen::Matrix<double, 3, 1> GetPositionMeasurement()
+  {
     return z_p_;
   }
+  
   // Setters for configure values.
   void SetNoises(double n_zp);
   void SetDelay(double delay);
   void AdjustGPSZReference(double current_z);
 };
+
 }  // namespace msf_position_sensor
 
 #include "implementation/position_sensorhandler.hpp"

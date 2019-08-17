@@ -34,33 +34,34 @@ enum {
  * \brief A measurement as provided by a position sensor, e.g. Total Station, GPS.
  */
 typedef msf_core::MSF_Measurement<
-    sensor_fusion_comm::PointWithCovarianceStamped,
-    Eigen::Matrix<double, nMeasurements, nMeasurements>, msf_updates::EKFState> PositionMeasurementBase;
+    sensor_fusion_comm::PointWithCovarianceStamped, Eigen::Matrix<double, nMeasurements, nMeasurements>, msf_updates::EKFState> PositionMeasurementBase;
+    
 struct PositionMeasurement : public PositionMeasurementBase {
- private:
+ 
+private:
+   
   typedef PositionMeasurementBase Measurement_t;
   typedef Measurement_t::Measurement_ptr measptr_t;
 
   virtual void MakeFromSensorReadingImpl(measptr_t msg) {
 
-    Eigen::Matrix<double, nMeasurements,
-        msf_core::MSF_Core<msf_updates::EKFState>::nErrorStatesAtCompileTime> H_old;
+    Eigen::Matrix<double, nMeasurements, msf_core::MSF_Core<msf_updates::EKFState>::nErrorStatesAtCompileTime> H_old;
     Eigen::Matrix<double, nMeasurements, 1> r_old;
 
     H_old.setZero();
 
     // Get measurement.
-    z_p_ = Eigen::Matrix<double, 3, 1>(msg->point.x, msg->point.y,
-                                       msg->point.z);
+    z_p_ = Eigen::Matrix<double, 3, 1>(msg->point.x, msg->point.y, msg->point.z);
 
     if (fixed_covariance_)  //  take fix covariance from reconfigure GUI
     {
 
       const double s_zp = n_zp_ * n_zp_;
-      R_ = (Eigen::Matrix<double, nMeasurements, 1>() << s_zp, s_zp, s_zp)
-          .finished().asDiagonal();
+      R_ = (Eigen::Matrix<double, nMeasurements, 1>() << s_zp, s_zp, s_zp).finished().asDiagonal();
 
-    } else {  // Tke covariance from sensor.
+    }
+    else
+    {  // Take covariance from sensor.
 
       R_.block<3, 3>(0, 0) = msf_core::Matrix3(&msg->covariance[0]);
 
@@ -72,8 +73,13 @@ struct PositionMeasurement : public PositionMeasurementBase {
       }
     }
   }
+  
  public:
+  
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  
+  
+  // NOTE measured sensor values
   Eigen::Matrix<double, 3, 1> z_p_;  /// Position measurement.
   double n_zp_;  /// Position measurement noise.
 
@@ -83,8 +89,13 @@ struct PositionMeasurement : public PositionMeasurementBase {
   typedef msf_updates::EKFState EKFState_T;
   typedef EKFState_T::StateSequence_T StateSequence_T;
   typedef EKFState_T::StateDefinition_T StateDefinition_T;
-  virtual ~PositionMeasurement() {
+  
+  
+  // NOTE constructors
+  virtual ~PositionMeasurement()
+  {
   }
+  
   PositionMeasurement(double n_zp, bool fixed_covariance,
                       bool isabsoluteMeasurement, int sensorID, int fixedstates,
                       bool enable_mah_outlier_rejection, double mah_threshold)
@@ -94,14 +105,15 @@ struct PositionMeasurement : public PositionMeasurementBase {
         fixed_covariance_(fixed_covariance),
         fixedstates_(fixedstates) {
   }
+  
   virtual std::string Type() {
     return "position";
   }
 
   virtual void CalculateH(
       shared_ptr<EKFState_T> state_in,
-      Eigen::Matrix<double, nMeasurements,
-          msf_core::MSF_Core<EKFState_T>::nErrorStatesAtCompileTime>& H) {
+      Eigen::Matrix<double, nMeasurements, msf_core::MSF_Core<EKFState_T>::nErrorStatesAtCompileTime>& H) 
+  {
     const EKFState_T& state = *state_in;  // Get a const ref, so we can read core states.
 
     H.setZero();
@@ -190,7 +202,8 @@ struct PositionMeasurement : public PositionMeasurementBase {
       // Call update step in base class.
       this->CalculateAndApplyCorrection(state_nonconst_new, core, H_new, r_old,
                                         R_);
-    } else {
+    }
+    else {
       MSF_ERROR_STREAM_THROTTLE(
           1, "You chose to apply the position measurement "
           "as a relative quantitiy, which is currently not implemented.");

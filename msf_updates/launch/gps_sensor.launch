@@ -1,18 +1,17 @@
 <launch>
-    <node name="msf_viconpos_sensor" pkg="msf_updates" type="pose_sensor" clear_params="true" output="screen">
+    <node name="msf_viconpos_sensor" pkg="msf_updates" type="position_sensor" clear_params="true" output="screen">
 
 		<remap from="msf_core/hl_state_input" to="/fcu/ekf_state_out" />
 		<remap from="msf_core/correction" to="/fcu/ekf_state_in" />
 		<remap from="msf_updates/transform_input" to="/vicon/robot_name/robot_name" />
 
-                <remap from="/msf_core/imu_state_input" to="/mavros/imu/data"  />
-                <remap from="msf_updates/transform_input" to="/mavros/global_position/raw/fix" />
+                <remap from="/msf_core/imu_state_input" to="/gi/msf/imu"  />
+                <remap from="msf_updates/navsatfix_input" to="/gi/msf/gps" />
 
 		<rosparam file="$(find msf_updates)/viconpos_sensor_fix.yaml"/>        
 
     </node>
 
     <node pkg="rosservice" type="rosservice" name="initialize" args="call --wait /msf_viconpos_sensor/pose_sensor/initialize_msf_scale 1"/>
-
 
 </launch>

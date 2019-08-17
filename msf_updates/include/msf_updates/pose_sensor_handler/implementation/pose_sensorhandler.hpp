@@ -19,6 +19,8 @@
 #include <msf_core/eigen_utils.h>
 #include <msf_core/msf_types.h>
 
+
+
 #ifndef POSE_SENSORHANDLER_HPP_
 #define POSE_SENSORHANDLER_HPP_
 
@@ -33,7 +35,9 @@ PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::PoseSensorHandler(
       n_zq_(1e-6),
       delay_(0),
       timestamp_previous_pose_(0) {
-  ros::NodeHandle pnh("~/" + parameternamespace);
+      ros::NodeHandle pnh("~/" + parameternamespace);
+      
+      myfile.open ("./raw_pose.txt");
 
   MSF_INFO_STREAM(
       "Loading parameters for pose sensor from namespace: "
@@ -67,13 +71,15 @@ PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::PoseSensorHandler(
                        "handling measurements as relative values");
 
   ros::NodeHandle nh("msf_updates/" + topic_namespace);
-  subPoseWithCovarianceStamped_ =
-      nh.subscribe < geometry_msgs::PoseWithCovarianceStamped
-          > ("pose_with_covariance_input", 20, &PoseSensorHandler::MeasurementCallback, this);
-  subTransformStamped_ = nh.subscribe < geometry_msgs::TransformStamped
-      > ("transform_input", 20, &PoseSensorHandler::MeasurementCallback, this);
-  subPoseStamped_ = nh.subscribe < geometry_msgs::PoseStamped
-      > ("pose_input", 20, &PoseSensorHandler::MeasurementCallback, this);
+  
+  subPoseWithCovarianceStamped_ = nh.subscribe < geometry_msgs::PoseWithCovarianceStamped> 
+                                  ("pose_with_covariance_input", 20, &PoseSensorHandler::MeasurementCallback, this);
+  
+  subTransformStamped_ = nh.subscribe < geometry_msgs::TransformStamped>
+                                  ("transform_input", 20, &PoseSensorHandler::MeasurementCallback, this);
+  
+  subPoseStamped_ = nh.subscribe < geometry_msgs::PoseStamped>
+                                  ("pose_input", 20, &PoseSensorHandler::MeasurementCallback, this);
 
   z_p_.setZero();
   z_q_.setIdentity();
@@ -123,8 +129,7 @@ void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::SetDelay(double delay) {
 }
 
 template<typename MEASUREMENT_TYPE, typename MANAGER_TYPE>
-void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::ProcessPoseMeasurement(
-    const geometry_msgs::PoseWithCovarianceStampedConstPtr & msg) {
+void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::ProcessPoseMeasurement(const geometry_msgs::PoseWithCovarianceStampedConstPtr & msg) {
   received_first_measurement_ = true;
 
   // Get the fixed states.
@@ -168,12 +173,12 @@ void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::ProcessPoseMeasurement(
 
   z_p_ = meas->z_p_;  //store this for the init procedure
   z_q_ = meas->z_q_;
-
+  
+  std::cout<<"pose_sensorhandler::AddMeasurement()."<<std::endl;
   this->manager_.msf_core_->AddMeasurement(meas);
 }
 template<typename MEASUREMENT_TYPE, typename MANAGER_TYPE>
-void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
-    const geometry_msgs::PoseWithCovarianceStampedConstPtr & msg) {
+void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr & msg) {
 
   this->SequenceWatchDog(msg->header.seq,
                          subPoseWithCovarianceStamped_.getTopic());
@@ -185,8 +190,10 @@ void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
 }
 
 template<typename MEASUREMENT_TYPE, typename MANAGER_TYPE>
-void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
-    const geometry_msgs::TransformStampedConstPtr & msg) {
+void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(const geometry_msgs::TransformStampedConstPtr & msg)
+{
+  std::cout<<"PoseSensorHandler::MeasurementCallback!"<<std::endl;
+  
   this->SequenceWatchDog(msg->header.seq, subTransformStamped_.getTopic());
   MSF_INFO_STREAM_ONCE(
       "*** pose sensor got first measurement from topic "
@@ -227,13 +234,16 @@ void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
   pose->pose.pose.orientation.x = msg->transform.rotation.x;
   pose->pose.pose.orientation.y = msg->transform.rotation.y;
   pose->pose.pose.orientation.z = msg->transform.rotation.z;
-
+  
+  myfile << "pointwCov: "<<pose->pose.pose.position.x<<", "<<pose->pose.pose.position.y<<", "<<pose->pose.pose.position.z<<std::endl;
+  std::cout<<"pointwCov: "<<pose->pose.pose.position.x<<", "<<pose->pose.pose.position.y<<", "<<pose->pose.pose.position.z<<std::endl;
+  
   ProcessPoseMeasurement(pose);
 }
 
 template<typename MEASUREMENT_TYPE, typename MANAGER_TYPE>
-void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
-    const geometry_msgs::PoseStampedConstPtr & msg) {
+void PoseSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(const geometry_msgs::PoseStampedConstPtr & msg)
+{
   this->SequenceWatchDog(msg->header.seq, subPoseStamped_.getTopic());
   MSF_INFO_STREAM_ONCE(
       "*** pose sensor got first measurement from topic "

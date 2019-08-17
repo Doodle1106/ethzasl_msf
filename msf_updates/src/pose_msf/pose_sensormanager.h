@@ -36,39 +36,42 @@ typedef msf_updates::SinglePoseSensorConfig Config_T;
 typedef dynamic_reconfigure::Server<Config_T> ReconfigureServer;
 typedef shared_ptr<ReconfigureServer> ReconfigureServerPtr;
 
-class PoseSensorManager : public msf_core::MSF_SensorManagerROS<
-    msf_updates::EKFState> {
+class PoseSensorManager : public msf_core::MSF_SensorManagerROS< msf_updates::EKFState>
+{
+ 
   typedef PoseSensorHandler<msf_updates::pose_measurement::PoseMeasurement<>,
       PoseSensorManager> PoseSensorHandler_T;
+      
   friend class PoseSensorHandler<msf_updates::pose_measurement::PoseMeasurement<>,
       PoseSensorManager> ;
+      
  public:
+   
   typedef msf_updates::EKFState EKFState_T;
   typedef EKFState_T::StateSequence_T StateSequence_T;
   typedef EKFState_T::StateDefinition_T StateDefinition_T;
 
-  PoseSensorManager(ros::NodeHandle pnh = ros::NodeHandle("~/pose_sensor")) {
+  PoseSensorManager(ros::NodeHandle pnh = ros::NodeHandle("~/pose_sensor"))
+  {
     bool distortmeas = false;  ///< Distort the pose measurements.
 
-    imu_handler_.reset(
-        new msf_core::IMUHandler_ROS<msf_updates::EKFState>(*this, "msf_core",
-                                                            "imu_handler"));
-    pose_handler_.reset(
-        new PoseSensorHandler_T(*this, "", "pose_sensor", distortmeas));
+    imu_handler_.reset(new msf_core::IMUHandler_ROS<msf_updates::EKFState>(*this, "msf_core", "imu_handler"));
+    
+    pose_handler_.reset(new PoseSensorHandler_T(*this, "", "pose_sensor", distortmeas));
 
     AddHandler(pose_handler_);
 
     reconf_server_.reset(new ReconfigureServer(pnh));
+    
     ReconfigureServer::CallbackType f = boost::bind(&PoseSensorManager::Config,
                                                     this, _1, _2);
     reconf_server_->setCallback(f);
 
-    init_scale_srv_ = pnh.advertiseService("initialize_msf_scale",
-                                           &PoseSensorManager::InitScale, this);
-    init_height_srv_ = pnh.advertiseService("initialize_msf_height",
-                                            &PoseSensorManager::InitHeight,
-                                            this);
+    init_scale_srv_ = pnh.advertiseService("initialize_msf_scale",&PoseSensorManager::InitScale, this);
+    
+    init_height_srv_ = pnh.advertiseService("initialize_msf_height", &PoseSensorManager::InitHeight, this);
   }
+  
   virtual ~PoseSensorManager() { }
 
   virtual const Config_T& Getcfg() {
@@ -152,6 +155,9 @@ class PoseSensorManager : public msf_core::MSF_SensorManagerROS<
   }
 
   void Init(double scale) const {
+    
+    std::cout<<"pose sensor inited."<<std::endl;
+    
     Eigen::Matrix<double, 3, 1> p, v, b_w, b_a, g, w_m, a_m, p_ic, p_vc, p_wv;
     Eigen::Quaternion<double> q, q_wv, q_ic, q_cv;
     msf_core::MSF_Core<EKFState_T>::ErrorStateCov P;

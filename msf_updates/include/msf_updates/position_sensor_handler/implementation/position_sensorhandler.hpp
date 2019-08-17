@@ -22,6 +22,9 @@
 #include <msf_core/eigen_utils.h>
 #include <msf_core/gps_conversion.h>
 
+#include <fstream>
+#include <iostream>
+
 namespace msf_position_sensor {
 template<typename MEASUREMENT_TYPE, typename MANAGER_TYPE>
 PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::PositionSensorHandler(
@@ -30,37 +33,38 @@ PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::PositionSensorHandler(
     : SensorHandler<msf_updates::EKFState>(meas, topic_namespace,
                                            parameternamespace),
       n_zp_(1e-6),
-      delay_(0) {
-  ros::NodeHandle pnh("~/position_sensor");
-  pnh.param("position_use_fixed_covariance", use_fixed_covariance_, false);
-  pnh.param("position_absolute_measurements", provides_absolute_measurements_,
-            false);
-  pnh.param("enable_mah_outlier_rejection", enable_mah_outlier_rejection_, false);
-  pnh.param("mah_threshold", mah_threshold_, msf_core::kDefaultMahThreshold_);
+      delay_(0){
+	
+	
+      myfile.open ("raw_position.txt");
+	
+      ros::NodeHandle pnh("~/position_sensor");
+      pnh.param("position_use_fixed_covariance", use_fixed_covariance_, false);
+      pnh.param("position_absolute_measurements", provides_absolute_measurements_, false);
+      pnh.param("enable_mah_outlier_rejection", enable_mah_outlier_rejection_, false);
+      pnh.param("mah_threshold", mah_threshold_, msf_core::kDefaultMahThreshold_);
 
-  MSF_INFO_STREAM_COND(use_fixed_covariance_, "Position sensor is using fixed "
-                       "covariance");
-  MSF_INFO_STREAM_COND(!use_fixed_covariance_, "Position sensor is using "
-                       "covariance from sensor");
+      MSF_INFO_STREAM_COND(use_fixed_covariance_, "Position sensor is using fixed "
+			  "covariance");
+      MSF_INFO_STREAM_COND(!use_fixed_covariance_, "Position sensor is using "
+			  "covariance from sensor");
 
-  MSF_INFO_STREAM_COND(provides_absolute_measurements_, "Position sensor is "
-                       "handling measurements as absolute values");
-  MSF_INFO_STREAM_COND(!provides_absolute_measurements_, "Position sensor is "
-                       "handling measurements as relative values");
+      MSF_INFO_STREAM_COND(provides_absolute_measurements_, "Position sensor is "
+			  "handling measurements as absolute values");
+      MSF_INFO_STREAM_COND(!provides_absolute_measurements_, "Position sensor is "
+			  "handling measurements as relative values");
 
-  ros::NodeHandle nh("msf_updates");
+      ros::NodeHandle nh("msf_updates");
 
-  subPointStamped_ =
-      nh.subscribe<geometry_msgs::PointStamped>
-  ("position_input", 20, &PositionSensorHandler::MeasurementCallback, this);
-  subTransformStamped_ =
-      nh.subscribe<geometry_msgs::TransformStamped>
-  ("transform_input", 20, &PositionSensorHandler::MeasurementCallback, this);
-  subNavSatFix_ =
-      nh.subscribe<sensor_msgs::NavSatFix>
-  ("navsatfix_input", 20, &PositionSensorHandler::MeasurementCallback, this);
+      subPointStamped_ = nh.subscribe<geometry_msgs::PointStamped>("position_input", 20, &PositionSensorHandler::MeasurementCallback, this);
+      
+      //NOTE default position callback function that is specified in its corresponding launch files.
+      subTransformStamped_ = nh.subscribe<geometry_msgs::TransformStamped>("transform_input", 20, &PositionSensorHandler::MeasurementCallback, this);
+      
+      //NOTE default GPS callback
+      subNavSatFix_ = nh.subscribe<sensor_msgs::NavSatFix>("navsatfix_input", 20, &PositionSensorHandler::MeasurementCallback, this);
 
-  z_p_.setZero();
+      z_p_.setZero();
 
 }
 
@@ -81,10 +85,10 @@ void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::AdjustGPSZReference(
     double current_z) {
   gpsConversion_.AdjustReference(z_p_(2) - current_z);
 }
-
+ 
 template<typename MEASUREMENT_TYPE, typename MANAGER_TYPE>
-void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::ProcessPositionMeasurement(
-    const sensor_fusion_comm::PointWithCovarianceStampedConstPtr& msg) {
+void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::ProcessPositionMeasurement(const sensor_fusion_comm::PointWithCovarianceStampedConstPtr& msg) {
+    
   received_first_measurement_ = true;
 
   // Get the fixed states.
@@ -95,11 +99,11 @@ void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::ProcessPositionMeasu
   // Do not exceed the 32 bits of int.
 
   if (!use_fixed_covariance_ && msg->covariance[0] == 0)  // Take covariance from sensor.
-      {
-    MSF_WARN_STREAM_THROTTLE(
-        2, "Provided message type without covariance but set "
-        "fixed_covariance=false at the same time. Discarding message.");
-    return;
+  {
+	MSF_WARN_STREAM_THROTTLE(
+	    2, "Provided message type without covariance but set "
+	    "fixed_covariance=false at the same time. Discarding message.");
+	return;
   }
 
   // Get all the fixed states and set flag bits.
@@ -119,13 +123,16 @@ void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::ProcessPositionMeasu
   meas->MakeFromSensorReading(msg, msg->header.stamp.toSec() - delay_);
 
   z_p_ = meas->z_p_;  // Store this for the init procedure.
-
+  
+  //NOTE publish final results!
+  std::cout<<"position_sensorhandler::AddMeasurement()."<<std::endl;
   this->manager_.msf_core_->AddMeasurement(meas);
 }
 
 template<typename MEASUREMENT_TYPE, typename MANAGER_TYPE>
 void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
     const geometry_msgs::PointStampedConstPtr & msg) {
+  
   this->SequenceWatchDog(msg->header.seq, subPointStamped_.getTopic());
 
   MSF_INFO_STREAM_ONCE(
@@ -142,8 +149,11 @@ void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
 }
 
 template<typename MEASUREMENT_TYPE, typename MANAGER_TYPE>
-void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
-    const geometry_msgs::TransformStampedConstPtr & msg) {
+void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(const geometry_msgs::TransformStampedConstPtr & msg)
+{
+  
+  std::cout<<"PositionSensorHandler::MeasurementCallback!"<<std::endl;
+  
   this->SequenceWatchDog(msg->header.seq, subTransformStamped_.getTopic());
 
   MSF_INFO_STREAM_ONCE(
@@ -157,21 +167,24 @@ void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
     return;
   }
 
-  sensor_fusion_comm::PointWithCovarianceStampedPtr pointwCov(
-      new sensor_fusion_comm::PointWithCovarianceStamped);
+  sensor_fusion_comm::PointWithCovarianceStampedPtr pointwCov(new sensor_fusion_comm::PointWithCovarianceStamped);
   pointwCov->header = msg->header;
 
   // Fixed covariance will be set in measurement class -> MakeFromSensorReadingImpl.
   pointwCov->point.x = msg->transform.translation.x;
   pointwCov->point.y = msg->transform.translation.y;
   pointwCov->point.z = msg->transform.translation.z;
-
+  
+  myfile << "pointwCov: "<<pointwCov->point.x<<", "<<pointwCov->point.y<<", "<<pointwCov->point.z<<std::endl;
+  std::cout<<"pointwCov: "<<pointwCov->point.x<<", "<<pointwCov->point.y<<", "<<pointwCov->point.z<<std::endl;
+  
   ProcessPositionMeasurement(pointwCov);
+  
 }
 
 template<typename MEASUREMENT_TYPE, typename MANAGER_TYPE>
-void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
-    const sensor_msgs::NavSatFixConstPtr& msg) {
+void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(const sensor_msgs::NavSatFixConstPtr& msg) {
+  
   this->SequenceWatchDog(msg->header.seq, subNavSatFix_.getTopic());
 
   MSF_INFO_STREAM_ONCE(
@@ -204,6 +217,8 @@ void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
   pointwCov->point.y = enu[1];
   pointwCov->point.z = enu[2];
 
+  std::cout<<"GPS ENU: "<<pointwCov->point.x<<", "<<pointwCov->point.y<<", "<<pointwCov->point.z<<std::endl;
+  
   // Get the covariance TODO (slynen): handle the cases differently!
   if (msg->position_covariance_type
       == sensor_msgs::NavSatFix::COVARIANCE_TYPE_KNOWN) {
@@ -217,6 +232,7 @@ void PositionSensorHandler<MEASUREMENT_TYPE, MANAGER_TYPE>::MeasurementCallback(
   }
 
   ProcessPositionMeasurement(pointwCov);
-}
-}  // namespace msf_position_sensor
+  }
+} 
+// namespace msf_position_sensor
 #endif  // POSITION_SENSORHANDLER_HPP_

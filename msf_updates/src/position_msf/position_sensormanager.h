@@ -35,38 +35,39 @@ typedef msf_updates::SinglePositionSensorConfig Config_T;
 typedef dynamic_reconfigure::Server<Config_T> ReconfigureServer;
 typedef shared_ptr<ReconfigureServer> ReconfigureServerPtr;
 
-class PositionSensorManager : public msf_core::MSF_SensorManagerROS<
-    msf_updates::EKFState> {
-  typedef PositionSensorHandler<
-      msf_updates::position_measurement::PositionMeasurement,
-      PositionSensorManager> PositionSensorHandler_T;
-  friend class PositionSensorHandler<
-      msf_updates::position_measurement::PositionMeasurement,
-      PositionSensorManager> ;
+class PositionSensorManager : public msf_core::MSF_SensorManagerROS<msf_updates::EKFState> {
+  
+  typedef PositionSensorHandler<msf_updates::position_measurement::PositionMeasurement, PositionSensorManager> PositionSensorHandler_T;
+  
+  friend class PositionSensorHandler<msf_updates::position_measurement::PositionMeasurement, PositionSensorManager>;
+      
  public:
+   
   typedef msf_updates::EKFState EKFState_T;
   typedef EKFState_T::StateSequence_T StateSequence_T;
   typedef EKFState_T::StateDefinition_T StateDefinition_T;
 
-  PositionSensorManager(
-      ros::NodeHandle pnh = ros::NodeHandle("~/position_sensor")) {
-    imu_handler_.reset(
-        new msf_core::IMUHandler_ROS<msf_updates::EKFState>(*this, "msf_core",
-                                                            "imu_handler"));
+  PositionSensorManager(ros::NodeHandle pnh = ros::NodeHandle("~/position_sensor"))
+  {
+    imu_handler_.reset( new msf_core::IMUHandler_ROS<msf_updates::EKFState>(*this, "msf_core", "imu_handler"));
 
-    position_handler_.reset(
-        new PositionSensorHandler_T(*this, "", "position_sensor"));
+    position_handler_.reset( new PositionSensorHandler_T(*this, "", "position_sensor"));
+    
     AddHandler(position_handler_);
 
     reconf_server_.reset(new ReconfigureServer(pnh));
-    ReconfigureServer::CallbackType f = boost::bind(
-        &PositionSensorManager::Config, this, _1, _2);
+    
+    ReconfigureServer::CallbackType f = boost::bind(&PositionSensorManager::Config, this, _1, _2);
+    
     reconf_server_->setCallback(f);
   }
-  virtual ~PositionSensorManager() {
+  
+  virtual ~PositionSensorManager()
+  {
   }
 
-  virtual const Config_T& Getcfg() {
+  virtual const Config_T& Getcfg()
+  {
     return config_;
   }
 
@@ -80,18 +81,22 @@ class PositionSensorManager : public msf_core::MSF_SensorManagerROS<
   /**
    * \brief Dynamic reconfigure callback.
    */
-  virtual void Config(Config_T &config, uint32_t level) {
+  virtual void Config(Config_T &config, uint32_t level)
+  {
     config_ = config;
     position_handler_->SetNoises(config.position_noise_meas);
     position_handler_->SetDelay(config.position_delay);
-    if ((level & msf_updates::SinglePositionSensor_INIT_FILTER)
-        && config.core_init_filter == true) {
+    if ((level & msf_updates::SinglePositionSensor_INIT_FILTER) && config.core_init_filter == true)
+    {
       Init(1.0);
       config.core_init_filter = false;
     }
   }
 
   void Init(double scale) const {
+    
+    std::cout<<"position sensor inited."<<std::endl;
+    
     if (scale < 0.001) {
       MSF_WARN_STREAM("init scale is "<<scale<<" correcting to 1");
       scale = 1;
@@ -122,13 +127,11 @@ class PositionSensorManager : public msf_core::MSF_SensorManagerROS<
 
     p_vc = position_handler_->GetPositionMeasurement();
 
-    MSF_INFO_STREAM(
-        "initial measurement pos:[" << p_vc.transpose() << "] orientation: " << STREAMQUAT(q));
+    MSF_INFO_STREAM("initial measurement pos:[" << p_vc.transpose() << "] orientation: " << STREAMQUAT(q));
 
     // check if we have already input from the measurement sensor
     if (!position_handler_->ReceivedFirstMeasurement())
-      MSF_WARN_STREAM(
-          "No measurements received yet to initialize position - using [0 0 0]");
+      MSF_WARN_STREAM("No measurements received yet to initialize position - using [0 0 0]");
 
     ros::NodeHandle pnh("~");
     pnh.param("position_sensor/init/p_ip/x", p_ip[0], 0.0);
@@ -142,8 +145,7 @@ class PositionSensorManager : public msf_core::MSF_SensorManagerROS<
 
     //prepare init "measurement"
     // True means that we will also set the initialsensor readings.
-    shared_ptr < msf_core::MSF_InitMeasurement<EKFState_T>
-        > meas(new msf_core::MSF_InitMeasurement<EKFState_T>(true));
+    shared_ptr < msf_core::MSF_InitMeasurement<EKFState_T> > meas(new msf_core::MSF_InitMeasurement<EKFState_T>(true));
 
     meas->SetStateInitValue < StateDefinition_T::p > (p);
     meas->SetStateInitValue < StateDefinition_T::v > (v);

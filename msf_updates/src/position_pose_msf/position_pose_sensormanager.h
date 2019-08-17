@@ -37,41 +37,48 @@ typedef shared_ptr<ReconfigureServer> ReconfigureServerPtr;
 
 class PositionPoseSensorManager : public msf_core::MSF_SensorManagerROS<
     msf_updates::EKFState> {
+      
   typedef PositionPoseSensorManager this_T;
+  
   typedef msf_pose_sensor::PoseSensorHandler<
       msf_updates::pose_measurement::PoseMeasurement<>, this_T> PoseSensorHandler_T;
+  
   friend class msf_pose_sensor::PoseSensorHandler<
       msf_updates::pose_measurement::PoseMeasurement<>, this_T>;
+  
   typedef msf_position_sensor::PositionSensorHandler<
       msf_updates::position_measurement::PositionMeasurement, this_T> PositionSensorHandler_T;
+  
   friend class msf_position_sensor::PositionSensorHandler<
       msf_updates::position_measurement::PositionMeasurement, this_T>;
+      
  public:
+   
+  std::ofstream myfile;
   typedef msf_updates::EKFState EKFState_T;
   typedef EKFState_T::StateSequence_T StateSequence_T;
   typedef EKFState_T::StateDefinition_T StateDefinition_T;
 
-  PositionPoseSensorManager(
-      ros::NodeHandle pnh = ros::NodeHandle("~/position_pose_sensor")) {
+  PositionPoseSensorManager(ros::NodeHandle pnh = ros::NodeHandle("~/position_pose_sensor"))
+  {
     imu_handler_.reset(
         new msf_core::IMUHandler_ROS<msf_updates::EKFState>(*this, "msf_core",
                                                             "imu_handler"));
 
     bool distortmeas = false;  ///< Distort the pose measurements
 
-    pose_handler_.reset(
-        new PoseSensorHandler_T(*this, "", "pose_sensor", distortmeas));
+    pose_handler_.reset(new PoseSensorHandler_T(*this, "", "pose_sensor", distortmeas));
     AddHandler(pose_handler_);
 
-    position_handler_.reset(
-        new PositionSensorHandler_T(*this, "", "position_sensor"));
+    position_handler_.reset(new PositionSensorHandler_T(*this, "", "position_sensor"));
     AddHandler(position_handler_);
 
     reconf_server_.reset(new ReconfigureServer(pnh));
-    ReconfigureServer::CallbackType f = boost::bind(&this_T::Config, this, _1,
-                                                    _2);
+    ReconfigureServer::CallbackType f = boost::bind(&this_T::Config, this, _1, _2);
+    
     reconf_server_->setCallback(f);
   }
+  
   virtual ~PositionPoseSensorManager() {
   }
 

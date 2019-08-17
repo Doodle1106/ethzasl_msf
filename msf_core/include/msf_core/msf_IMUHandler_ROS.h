@@ -19,6 +19,8 @@
 
 #include <msf_core/msf_IMUHandler.h>
 
+#include <iostream>
+
 namespace msf_core {
 
 template<typename EKFState_T>
@@ -90,25 +92,27 @@ class IMUHandler_ROS : public IMUHandler<EKFState_T> {
   }
 
   void IMUCallback(const sensor_msgs::ImuConstPtr & msg) {
+    
+    std::cout<<"IMUCallback!"<<std::endl;
+    
     static int lastseq = constants::INVALID_SEQUENCE;
+    
     if (static_cast<int>(msg->header.seq) != lastseq + 1
         && lastseq != constants::INVALID_SEQUENCE) {
-      MSF_WARN_STREAM(
+        MSF_WARN_STREAM(
           "msf_core: imu message drop curr seq:" << msg->header.seq
               << " expected: " << lastseq + 1);
     }
+    
     lastseq = msg->header.seq;
 
     msf_core::Vector3 linacc;
-    linacc << msg->linear_acceleration.x, msg->linear_acceleration.y, msg
-        ->linear_acceleration.z;
+    linacc << msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z;
 
     msf_core::Vector3 angvel;
-    angvel << msg->angular_velocity.x, msg->angular_velocity.y, msg
-        ->angular_velocity.z;
+    angvel << msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z;
 
-    this->ProcessIMU(linacc, angvel, msg->header.stamp.toSec(),
-                      msg->header.seq);
+    this->ProcessIMU(linacc, angvel, msg->header.stamp.toSec(),msg->header.seq);
   }
 
   virtual bool Initialize() {

@@ -35,6 +35,8 @@
 #include <msf_core/msf_sensormanager.h>
 #include <msf_core/msf_types.h>
 
+#include <iostream>
+
 namespace msf_core {
 
 enum {
@@ -69,6 +71,9 @@ struct MSF_SensorManagerROS : public msf_core::MSF_SensorManager<EKFState_T> {
   ros::Publisher pubCovCore_;  ///< Publishes the covariance matrix for the core states.
   ros::Publisher pubCovAux_;  ///< Publishes the covariance matrix for the auxiliary states.
   ros::Publisher pubCovCoreAux_; ///< Publishes the covariance matrix for the cross-correlations between core and auxiliary states.
+  
+  //NOTE newly added for pose visualization
+  ros::Publisher pubP;
 
   std::string msf_output_frame_;
 
@@ -90,24 +95,28 @@ struct MSF_SensorManagerROS : public msf_core::MSF_SensorManager<EKFState_T> {
 
     ros::NodeHandle nh("msf_core");
 
-    pubState_ = nh.advertise < sensor_fusion_comm::DoubleArrayStamped
-        > ("state_out", 100);
+    pubState_ = nh.advertise < sensor_fusion_comm::DoubleArrayStamped> ("state_out", 100);
+    
     pubCorrect_ = nh.advertise < sensor_fusion_comm::ExtEkf > ("correction", 1);
-    pubPose_ = nh.advertise < geometry_msgs::PoseWithCovarianceStamped
-        > ("pose", 100);
+    
+    pubPose_ = nh.advertise < geometry_msgs::PoseWithCovarianceStamped> ("pose", 100);
+    
     pubOdometry_ = nh.advertise < nav_msgs::Odometry> ("odometry", 100);
-    pubPoseAfterUpdate_ = nh.advertise
-        < geometry_msgs::PoseWithCovarianceStamped > ("pose_after_update", 100);
-    pubPoseCrtl_ = nh.advertise < sensor_fusion_comm::ExtState
-        > ("ext_state", 1);
-    pubCovCore_ = nh.advertise<sensor_fusion_comm::DoubleMatrixStamped>(
-        "cov_core", 10);
-    pubCovAux_ = nh.advertise<sensor_fusion_comm::DoubleMatrixStamped>(
-        "cov_aux", 10);
-    pubCovCoreAux_ = nh.advertise<sensor_fusion_comm::DoubleMatrixStamped>(
-        "cov_core_aux", 10);
+    
+    pubPoseAfterUpdate_ = nh.advertise< geometry_msgs::PoseWithCovarianceStamped > ("pose_after_update", 100);
+    
+    pubPoseCrtl_ = nh.advertise < sensor_fusion_comm::ExtState > ("ext_state", 1);
+    
+    pubCovCore_ = nh.advertise<sensor_fusion_comm::DoubleMatrixStamped>("cov_core", 10);
+    
+    pubCovAux_ = nh.advertise<sensor_fusion_comm::DoubleMatrixStamped>("cov_aux", 10);
+    
+    pubCovCoreAux_ = nh.advertise<sensor_fusion_comm::DoubleMatrixStamped>("cov_core_aux", 10);
 
     hl_state_buf_.state.resize(HLI_EKF_STATE_SIZE, 0);
+    
+    //NOTE newly added for simple pose visualization
+    pubP = nh.advertise <geometry_msgs::PointStamped> ("/gi/msf/result_p", 1);
 
     // Print published/subscribed topics.
     ros::V_string topics;
@@ -227,8 +236,10 @@ struct MSF_SensorManagerROS : public msf_core::MSF_SensorManager<EKFState_T> {
     }
   }
 
-  virtual void PublishStateAfterUpdate(
-      const shared_ptr<EKFState_T>& state) const {
+  virtual void PublishStateAfterUpdate(const shared_ptr<EKFState_T>& state) const {
+    
+    std::cout<<"In PublishStateAfterUpdate, publishing state!"<<std::endl;
+	
     static int msg_seq = 0;
 
     sensor_fusion_comm::ExtEkf msgCorrect_;
@@ -316,9 +327,40 @@ struct MSF_SensorManagerROS : public msf_core::MSF_SensorManager<EKFState_T> {
     }
 
     // Publish state.
+    
+    /*--------- State at time 3748.98s: ---------
+    0 : [0-2]	 : Matrix<3, 1>         : [0 0 0]
+    1 : [3-5]	 : Matrix<3, 1>         : [0 0 0]
+    2 : [6-9]	 : Quaternion (w,x,y,z) : [1, 0, 0, 0]
+    3 : [10-12]	 : Matrix<3, 1>         : [0 0 0]
+    4 : [13-15]	 : Matrix<3, 1>         : [0 0 0]
+    5 : [16-16]	 : Matrix<1, 1>         : [1]
+    6 : [17-20]	 : Quaternion (w,x,y,z) : [1, 0, 0, 0]
+    7 : [21-23]	 : Matrix<3, 1>         : [0 0 0]
+    8 : [24-27]	 : Quaternion (w,x,y,z) : [1, 0, 0, 0]
+    9 : [28-30]	 : Matrix<3, 1>         : [0 0 0]
+    -------------------------------------------------------*/
+
     sensor_fusion_comm::DoubleArrayStamped msgState;
     msgState.header = msgCorrect_.header;
     state->ToFullStateMsg(msgState);
+    
+    std::cout<<"msgState: "<<msgState.data[0]<<", "<<msgState.data[1]<<", "<<msgState.data[2]<<std::endl;
+    
+    geometry_msgs::PoseStamped result_p;
+    
+    result_p.header = msgCorrect_.header;
+    result_p.header.frame_id = "world";
+    result_p.pose.position.x = msgState.data[0];
+    result_p.pose.position.y = msgState.data[1];
+    result_p.pose.position.z = msgState.data[2];
+    
+    result_p.pose.orientation.w = msgState.data[6];
+    result_p.pose.orientation.x = msgState.data[7];
+    result_p.pose.orientation.y = msgState.data[8];
+    result_p.pose.orientation.z = msgState.data[9];
+    
+    pubP.publish(result_p);
     pubState_.publish(msgState);
 
     if (pubPoseAfterUpdate_.getNumSubscribers()) {
