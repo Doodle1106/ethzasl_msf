@@ -8,7 +8,7 @@
                 <remap from="/msf_core/imu_state_input" to="/gi/msf/imu"  />
                 <remap from="msf_updates/navsatfix_input" to="/gi/msf/gps" />
 
-		<rosparam file="$(find msf_updates)/viconpos_sensor_fix.yaml"/>        
+		<rosparam file="$(find msf_updates)/position_sensor_fix.yaml"/>        
 
     </node>
 

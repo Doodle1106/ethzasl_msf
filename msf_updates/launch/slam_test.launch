@@ -8,7 +8,7 @@
                 <remap from="/msf_core/imu_state_input" to="/gi/msf/imu"  />
                 <remap from="msf_updates/transform_input" to="/gi/msf/transformstamped" />
 
-		<rosparam file="$(find msf_updates)/viconpos_sensor_fix.yaml"/>        
+		<rosparam file="$(find msf_updates)/slam_test_fix.yaml"/>        
 
     </node>
 

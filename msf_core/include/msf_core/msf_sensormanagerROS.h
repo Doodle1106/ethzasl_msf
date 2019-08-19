@@ -27,6 +27,9 @@
 #include <sensor_fusion_comm/ExtEkf.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
+
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
 #include <tf/transform_broadcaster.h>
@@ -73,8 +76,10 @@ struct MSF_SensorManagerROS : public msf_core::MSF_SensorManager<EKFState_T> {
   ros::Publisher pubCovCoreAux_; ///< Publishes the covariance matrix for the cross-correlations between core and auxiliary states.
   
   //NOTE newly added for pose visualization
-  ros::Publisher pubP;
-
+  ros::Publisher pubP, pubP_history;
+  size_t result_index = 0;
+  visualization_msgs::MarkerArray Markers;
+  
   std::string msf_output_frame_;
 
   mutable tf::TransformBroadcaster tf_broadcaster_;
@@ -117,7 +122,8 @@ struct MSF_SensorManagerROS : public msf_core::MSF_SensorManager<EKFState_T> {
     
     //NOTE newly added for simple pose visualization
     pubP = nh.advertise <geometry_msgs::PointStamped> ("/gi/msf/result_p", 1);
-
+    pubP_history = nh.advertise<visualization_msgs::MarkerArray> ("/gi/msf/p_history", 1);
+    
     // Print published/subscribed topics.
     ros::V_string topics;
     ros::this_node::getSubscribedTopics(topics);
@@ -359,6 +365,9 @@ struct MSF_SensorManagerROS : public msf_core::MSF_SensorManager<EKFState_T> {
     result_p.pose.orientation.x = msgState.data[7];
     result_p.pose.orientation.y = msgState.data[8];
     result_p.pose.orientation.z = msgState.data[9];
+    
+    
+
     
     pubP.publish(result_p);
     pubState_.publish(msgState);

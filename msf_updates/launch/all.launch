@@ -26,9 +26,7 @@
         <remap from="msf_updates/transform_input" to="/gi/msf/transformstamped" />
 
         <rosparam file="$(find msf_updates)/position_pose_sensor_fix.yaml"/>      
-
     </node>
 
-    <node pkg="rosservice" type="rosservice" name="initialize" args="call --wait /msf_viconpos_sensor/pose_sensor/initialize_msf_scale 1"/>
 
 </launch>
